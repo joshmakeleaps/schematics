@@ -1,0 +1,65 @@
+[project]
+name = "schematics"
+description = 'Python Data Structures for Humans'
+authors = [
+    { name = 'James Dennis', email = 'jdennis@gmail.com' },
+    { name = 'Jökull Sólberg', email = 'jokull@plainvanillagames.com' },
+    { name = 'Jóhann Þorvaldur Bergþórsson', email = 'johann@plainvanillagames.com' },
+    { name = 'Kalle Tuure', email = 'kalle@goodtimes.fi' },
+    { name = 'Paul Eipper', email = 'paul@nkey.com.br' },
+]
+readme = { file = "README.rst", content-type = "text/x-rst" }
+requires-python = ">=3.10"
+license = { file = 'LICENSE' }
+dependencies = []
+classifiers = [
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: BSD License',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 2',
+    'Programming Language :: Python :: 2.7',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.2',
+    'Programming Language :: Python :: 3.3',
+    'Programming Language :: Python :: 3.4',
+    'Programming Language :: Python :: 3.5',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = ['pytest', 'python-dateutil', 'pymongo', 'mock', 'coverage']
+
+[tool.setuptools.dynamic]
+version = { attr = "schematics.__version__" }
+
+[tool.setuptools.packages.find]
+include = [
+    'schematics',
+    'schematics.types',
+    'schematics.contrib',
+    'schematics.extensions',
+]
+
+[tool.setuptools.package-data]
+schematics = ['locale/*/LC_MESSAGES/*.mo']
+
+[project.urls]
+homepage = 'https://github.com/schematics/schematics'
+
+[tool.flake8]
+max-line-length = 115
+ignore = ["E203", "E221", "E261", "W391"]
+
+[tool.ruff]
+line-length = 115
+
+[tool.ruff.format]
+quote-style = "preserve"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

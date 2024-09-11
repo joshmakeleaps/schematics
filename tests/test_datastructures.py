@@ -1,6 +1,5 @@
 import pickle
 from copy import deepcopy
-from six import PY3
 import pytest
 
 from schematics.datastructures import OrderedDict

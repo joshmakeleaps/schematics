@@ -2,7 +2,7 @@
 
 from __future__ import division
 
-from collections import Iterable
+from collections.abc import Iterable
 import itertools
 
 from ..exceptions import ValidationError, ConversionError, ModelValidationError, StopValidation
@@ -10,12 +10,8 @@ from ..transforms import export_loop, EMPTY_LIST, EMPTY_DICT
 
 from .base import BaseType
 
-from six import iteritems
-from six import string_types as basestring
-from six import text_type as unicode
 
 class MultiType(BaseType):
-
     def validate(self, value):
         """Report dictionary of errors with lists of errors as values of each
         key. Used by ModelType and ListType.
@@ -37,8 +33,7 @@ class MultiType(BaseType):
 
         return value
 
-    def export_loop(self, shape_instance, field_converter,
-                    role=None, print_none=False):
+    def export_loop(self, shape_instance, field_converter, role=None, print_none=False):
         raise NotImplementedError
 
     def init_compound_field(self, field, compound_field, **kwargs):
@@ -57,7 +52,6 @@ class MultiType(BaseType):
 
 
 class ModelType(MultiType):
-
     def __init__(self, model_class, **kwargs):
         self.model_class = model_class
         self.fields = self.model_class.fields
@@ -86,17 +80,16 @@ class ModelType(MultiType):
 
         if not isinstance(value, dict):
             raise ConversionError(
-                u'Please use a mapping for this field or {0} instance instead of {1}.'.format(
-                    self.model_class.__name__,
-                    type(value).__name__))
+                'Please use a mapping for this field or {0} instance instead of {1}.'.format(
+                    self.model_class.__name__, type(value).__name__
+                )
+            )
 
         # partial submodels now available with import_data (ht ryanolson)
         model = self.model_class()
-        return model.import_data(value, mapping=mapping, context=context,
-                                 strict=self.strict)
+        return model.import_data(value, mapping=mapping, context=context, strict=self.strict)
 
-    def export_loop(self, model_instance, field_converter,
-                    role=None, print_none=False):
+    def export_loop(self, model_instance, field_converter, role=None, print_none=False):
         """
         Calls the main `export_loop` implementation because they are both
         supposed to operate on models.
@@ -106,9 +99,7 @@ class ModelType(MultiType):
         else:
             model_class = self.model_class
 
-        shaped = export_loop(model_class, model_instance,
-                             field_converter,
-                             role=role, print_none=print_none)
+        shaped = export_loop(model_class, model_instance, field_converter, role=role, print_none=print_none)
 
         if shaped and len(shaped) == 0 and self.allow_none():
             return shaped
@@ -119,9 +110,7 @@ class ModelType(MultiType):
 
 
 class ListType(MultiType):
-
     def __init__(self, field, min_size=None, max_size=None, **kwargs):
-
         if not isinstance(field, BaseType):
             compound_field = kwargs.pop('compound_field', None)
             field = self.init_compound_field(field, compound_field, **kwargs)
@@ -143,11 +132,11 @@ class ListType(MultiType):
             return []
 
         try:
-            if isinstance(value, basestring):
+            if isinstance(value, str):
                 raise TypeError()
 
             if isinstance(value, dict):
-                return [value[unicode(k)] for k in sorted(map(int, value.keys()))]
+                return [value[str(k)] for k in sorted(map(int, value.keys()))]
 
             return list(value)
         except TypeError:
@@ -162,17 +151,27 @@ class ListType(MultiType):
         list_length = len(value) if value else 0
 
         if self.min_size is not None and list_length < self.min_size:
-            message = ({
-                True: u'Please provide at least %d item.',
-                False: u'Please provide at least %d items.',
-            }[self.min_size == 1]) % self.min_size
+            message = (
+                (
+                    {
+                        True: 'Please provide at least %d item.',
+                        False: 'Please provide at least %d items.',
+                    }[self.min_size == 1]
+                )
+                % self.min_size
+            )
             raise ValidationError(message)
 
         if self.max_size is not None and list_length > self.max_size:
-            message = ({
-                True: u'Please provide no more than %d item.',
-                False: u'Please provide no more than %d items.',
-            }[self.max_size == 1]) % self.max_size
+            message = (
+                (
+                    {
+                        True: 'Please provide no more than %d item.',
+                        False: 'Please provide no more than %d items.',
+                    }[self.max_size == 1]
+                )
+                % self.max_size
+            )
             raise ValidationError(message)
 
     def validate_items(self, items):
@@ -185,8 +184,7 @@ class ListType(MultiType):
         if errors:
             raise ValidationError(errors)
 
-    def export_loop(self, list_instance, field_converter,
-                    role=None, print_none=False):
+    def export_loop(self, list_instance, field_converter, role=None, print_none=False):
         """Loops over each item in the model and applies either the field
         transform or the multitype transform.  Essentially functions the same
         as `transforms.export_loop`.
@@ -194,8 +192,7 @@ class ListType(MultiType):
         data = []
         for value in list_instance:
             if hasattr(self.field, 'export_loop'):
-                shaped = self.field.export_loop(value, field_converter,
-                                                role=role)
+                shaped = self.field.export_loop(value, field_converter, role=role)
                 feels_empty = shaped and len(shaped) == 0
             else:
                 shaped = field_converter(self.field, value)
@@ -219,13 +216,12 @@ class ListType(MultiType):
 
 
 class DictType(MultiType):
-
     def __init__(self, field, coerce_key=None, **kwargs):
         if not isinstance(field, BaseType):
             compound_field = kwargs.pop('compound_field', None)
             field = self.init_compound_field(field, compound_field, **kwargs)
 
-        self.coerce_key = coerce_key or unicode
+        self.coerce_key = coerce_key or str
         self.field = field
 
         validators = [self.validate_items] + kwargs.pop("validators", [])
@@ -243,14 +239,13 @@ class DictType(MultiType):
         value = value or {}
 
         if not isinstance(value, dict):
-            raise ValidationError(u'Only dictionaries may be used in a DictType')
+            raise ValidationError('Only dictionaries may be used in a DictType')
 
-        return dict((self.coerce_key(k), self.field.to_native(v, context))
-                    for k, v in iteritems(value))
+        return dict((self.coerce_key(k), self.field.to_native(v, context)) for k, v in value.items())
 
     def validate_items(self, items):
         errors = {}
-        for key, value in iteritems(items):
+        for key, value in items.items():
             try:
                 self.field.validate(value)
             except ValidationError as exc:
@@ -259,18 +254,16 @@ class DictType(MultiType):
         if errors:
             raise ValidationError(errors)
 
-    def export_loop(self, dict_instance, field_converter,
-                    role=None, print_none=False):
+    def export_loop(self, dict_instance, field_converter, role=None, print_none=False):
         """Loops over each item in the model and applies either the field
         transform or the multitype transform.  Essentially functions the same
         as `transforms.export_loop`.
         """
         data = {}
 
-        for key, value in iteritems(dict_instance):
+        for key, value in dict_instance.items():
             if hasattr(self.field, 'export_loop'):
-                shaped = self.field.export_loop(value, field_converter,
-                                                role=role)
+                shaped = self.field.export_loop(value, field_converter, role=role)
                 feels_empty = shaped and len(shaped) == 0
             else:
                 shaped = field_converter(self.field, value)
@@ -292,19 +285,15 @@ class DictType(MultiType):
 
 
 class PolyModelType(MultiType):
-
     def __init__(self, model_classes, **kwargs):
-
         if isinstance(model_classes, type) and issubclass(model_classes, Model):
             self.model_classes = (model_classes,)
             allow_subclasses = True
-        elif isinstance(model_classes, Iterable) \
-          and not isinstance(model_classes, basestring):
+        elif isinstance(model_classes, Iterable) and not isinstance(model_classes, str):
             self.model_classes = tuple(model_classes)
             allow_subclasses = False
         else:
-            raise Exception("The first argument to PolyModelType.__init__() "
-                            "must be a model or an iterable.")
+            raise Exception("The first argument to PolyModelType.__init__() " "must be a model or an iterable.")
 
         validators = kwargs.pop("validators", [])
         self.strict = kwargs.pop("strict", True)
@@ -330,7 +319,6 @@ class PolyModelType(MultiType):
         return False
 
     def to_native(self, value, mapping=None, context=None):
-
         if mapping is None:
             mapping = {}
         if value is None:
@@ -339,17 +327,16 @@ class PolyModelType(MultiType):
             return value
         if not isinstance(value, dict):
             if len(self.model_classes) > 1:
-                instanceof_msg = 'one of: {}'.format(', '.join(
-                    cls.__name__ for cls in self.model_classes))
+                instanceof_msg = 'one of: {}'.format(', '.join(cls.__name__ for cls in self.model_classes))
             else:
                 instanceof_msg = self.model_classes[0].__name__
-            raise ConversionError(u'Please use a mapping for this field or '
-                                    'an instance of {}'.format(instanceof_msg))
+            raise ConversionError(
+                'Please use a mapping for this field or ' 'an instance of {}'.format(instanceof_msg)
+            )
 
         model_class = self.find_model(value)
         model = model_class()
-        return model.import_data(value, mapping=mapping, context=context,
-                                 strict=self.strict)
+        return model.import_data(value, mapping=mapping, context=context, strict=self.strict)
 
     def find_model(self, data):
         """Finds the intended type by consulting potential classes or `claim_function`."""
@@ -365,8 +352,8 @@ class PolyModelType(MultiType):
                 match = None
                 if '_claim_polymorphic' in cls.__dict__:
                     match = cls._claim_polymorphic(data)
-                elif not fallback: # The first model that doesn't define the hook
-                    fallback = cls # can be used as a default if there's no match.
+                elif not fallback:  # The first model that doesn't define the hook
+                    fallback = cls  # can be used as a default if there's no match.
                 if match:
                     matching_classes.append(cls)
             if not matching_classes and fallback:
@@ -380,16 +367,12 @@ class PolyModelType(MultiType):
         else:
             raise Exception("Input for polymorphic field did not match any model")
 
-    def export_loop(self, model_instance, field_converter,
-                    role=None, print_none=False):
-
+    def export_loop(self, model_instance, field_converter, role=None, print_none=False):
         model_class = model_instance.__class__
         if not self.is_allowed_model(model_instance):
             raise Exception("Cannot export: {} is not an allowed type".format(model_class))
 
-        shaped = export_loop(model_class, model_instance,
-                             field_converter,
-                             role=role, print_none=print_none)
+        shaped = export_loop(model_class, model_instance, field_converter, role=role, print_none=print_none)
 
         if shaped and len(shaped) == 0 and self.allow_none():
             return shaped
@@ -402,9 +385,7 @@ class PolyModelType(MultiType):
         candidates = self.model_classes
 
         if self.allow_subclasses:
-            candidates = itertools.chain.from_iterable(
-                ([m] + get_all_subclasses(m) for m in candidates)
-            )
+            candidates = itertools.chain.from_iterable(([m] + get_all_subclasses(m) for m in candidates))
 
         return candidates
 

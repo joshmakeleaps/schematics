@@ -7,13 +7,6 @@ from schematics.types.compound import ModelType, DictType, ListType
 from schematics.types.serializable import serializable
 from schematics.transforms import blacklist, whitelist, wholelist, export_loop
 
-import six
-from six import iteritems
-try:
-    unicode #PY2
-except:
-    import codecs
-    unicode = str #PY3
 
 def test_serializable():
     class Location(Model):
@@ -31,7 +24,7 @@ def test_serializable():
     assert d == {"country_code": "US", "country_name": "United States"}
 
     d = location_US.to_native()
-    assert d == {"country_code": u"US", "country_name": "United States"}
+    assert d == {"country_code": "US", "country_name": "United States"}
 
     location_IS = Location({"country_code": "IS"})
 
@@ -76,9 +69,8 @@ def test_serializable_with_serializable_name():
 
 def test_serializable_with_custom_serializable_class():
     class PlayerIdType(LongType):
-
         def to_primitive(self, value, context=None):
-            return unicode(value)
+            return str(value)
 
     class Player(Model):
         id = LongType()
@@ -191,13 +183,7 @@ def test_serializable_with_embedded_models_and_list():
     q1 = Question({"id": 1})
     q2 = Question({"id": 2})
 
-    game = Game({
-        "id": "1",
-        "question_pack": {
-            "id": 2,
-            "questions": [q1, q2]
-        }
-    })
+    game = Game({"id": "1", "question_pack": {"id": 2, "questions": [q1, q2]}})
 
     assert game.question_pack.questions[0] == q1
     assert game.question_pack.questions[1] == q2
@@ -215,8 +201,8 @@ def test_serializable_with_embedded_models_and_list():
                 {
                     "id": 2,
                 },
-            ]
-        }
+            ],
+        },
     }
 
 
@@ -244,16 +230,9 @@ def test_serializable_with_embedded_models():
     class PlayerCategoryInfo(PlayerInfo):
         categories = DictType(ModelType(CategoryStatsInfo))
 
-    info = PlayerCategoryInfo(dict(
-        id="1",
-        display_name="John Doe",
-        categories={
-            "math": {
-                "category_slug": "math",
-                "total_points": 1
-            }
-        }
-    ))
+    info = PlayerCategoryInfo(
+        dict(id="1", display_name="John Doe", categories={"math": {"category_slug": "math", "total_points": 1}})
+    )
 
     assert info.categories["math"].xp_level.level == 2
     assert info.categories["math"].xp_level.stars == 1
@@ -269,9 +248,9 @@ def test_serializable_with_embedded_models():
                 "xp_level": {
                     "level": 2,
                     "stars": 1,
-                }
+                },
             }
-        }
+        },
     }
 
 
@@ -314,28 +293,32 @@ def test_serialize_with_complex_types():
         question_id = StringType(required=True)
         resources = DictType(ListType(ModelType(QuestionResource)))
 
-    q = Question(dict(
-        question_id="1",
-        resources={
-            "pictures": [{
-                "url": "http://www.mbl.is",
-            }]
-        }
-    ))
+    q = Question(
+        dict(
+            question_id="1",
+            resources={
+                "pictures": [
+                    {
+                        "url": "http://www.mbl.is",
+                    }
+                ]
+            },
+        )
+    )
 
     d = q.serialize()
     assert d == dict(
         question_id="1",
         resources={
-            "pictures": [{
-                "url": "http://www.mbl.is",
-            }]
-        }
+            "pictures": [
+                {
+                    "url": "http://www.mbl.is",
+                }
+            ]
+        },
     )
 
-    q_with_no_resources = Question(dict(
-        question_id="1"
-    ))
+    q_with_no_resources = Question(dict(question_id="1"))
 
     d = q_with_no_resources.serialize()
     assert d == dict(
@@ -361,17 +344,14 @@ def test_field_with_serialize_when_none():
     q = Question(dict(id=1, question="Who's the man?", resources={"A": "B"}))
 
     d = q.serialize()
-    assert d == {
-        "id": "1",
-        "question": "Who's the man?",
-        "resources": {"A": "B"}
-    }
+    assert d == {"id": "1", "question": "Who's the man?", "resources": {"A": "B"}}
 
 
 def test_field_with_serialize_when_none_on_outer_only():
     class M(Model):
         listfield = ListType(StringType(serialize_when_none=True), serialize_when_none=False)
         dictfield = DictType(StringType(serialize_when_none=True), serialize_when_none=False)
+
     obj = M()
     obj.listfield = [None]
     obj.dictfield = {'foo': None}
@@ -382,6 +362,7 @@ def test_field_with_serialize_when_none_on_inner_only():
     class M(Model):
         listfield = ListType(StringType(serialize_when_none=False), serialize_when_none=True)
         dictfield = DictType(StringType(serialize_when_none=False), serialize_when_none=True)
+
     obj = M()
     obj.listfield = [None]
     obj.dictfield = {'foo': None}
@@ -456,14 +437,18 @@ def test_complex_types_hiding_after_apply_role_leaves_it_empty():
             serialize_when_none = False
             roles = {'public': whitelist('question_id', 'resources')}
 
-    q = Question(dict(
-        question_id="1",
-        resources={
-            "pictures": [{
-                "url": "http://www.mbl.is",
-            }]
-        }
-    ))
+    q = Question(
+        dict(
+            question_id="1",
+            resources={
+                "pictures": [
+                    {
+                        "url": "http://www.mbl.is",
+                    }
+                ]
+            },
+        )
+    )
 
     d = q.serialize('public')
     assert d == {'question_id': '1'}
@@ -510,15 +495,11 @@ def test_roles_work_with_subclassing():
     class AddressWithPostalCode(Address):
         postal_code = IntType()
 
-    a = AddressWithPostalCode(dict(
-        postal_code=101,
-        city=u"Reykjavík",
-        private_key="secret"
-    ))
+    a = AddressWithPostalCode(dict(postal_code=101, city="Reykjavík", private_key="secret"))
 
     d = a.serialize(role="public")
     assert d == {
-        "city": u"Reykjavík",
+        "city": "Reykjavík",
         "postal_code": 101,
     }
 
@@ -574,18 +555,9 @@ def test_doesnt_fail_if_role_isnt_found_on_embedded_models():
         xp_level = ModelType(ExperienceLevel)
 
         class Options:
-            roles = {
-                "public": blacklist("secret")
-            }
+            roles = {"public": blacklist("secret")}
 
-    p = Player(dict(
-        id="1",
-        secret="super_secret",
-        xp_level={
-            "level": 1,
-            "title": "Starter"
-        }
-    ))
+    p = Player(dict(id="1", secret="super_secret", xp_level={"level": 1, "title": "Starter"}))
 
     d = p.serialize(role="public")
     assert d == {
@@ -593,7 +565,7 @@ def test_doesnt_fail_if_role_isnt_found_on_embedded_models():
         "xp_level": {
             "level": 1,
             "title": "Starter",
-        }
+        },
     }
 
 
@@ -621,9 +593,7 @@ def test_uses_roles_on_embedded_models_if_found():
         title = StringType()
 
         class Options:
-            roles = {
-                "public": blacklist("title")
-            }
+            roles = {"public": blacklist("title")}
 
     class Player(Model):
         id = StringType()
@@ -632,25 +602,16 @@ def test_uses_roles_on_embedded_models_if_found():
         xp_level = ModelType(ExperienceLevel)
 
         class Options:
-            roles = {
-                "public": blacklist("secret")
-            }
+            roles = {"public": blacklist("secret")}
 
-    p = Player(dict(
-        id="1",
-        secret="super_secret",
-        xp_level={
-            "level": 1,
-            "title": "Starter"
-        }
-    ))
+    p = Player(dict(id="1", secret="super_secret", xp_level={"level": 1, "title": "Starter"}))
 
     d = p.serialize(role="public")
     assert d == {
         "id": "1",
         "xp_level": {
             "level": 1,
-        }
+        },
     }
 
 
@@ -660,9 +621,7 @@ def test_serializable_with_dict_and_roles():
         display_name = StringType()
 
         class Options:
-            roles = {
-                "public": blacklist("id")
-            }
+            roles = {"public": blacklist("id")}
 
     class Game(Model):
         id = StringType()
@@ -670,20 +629,12 @@ def test_serializable_with_dict_and_roles():
         players = DictType(ModelType(Player), coerce_key=lambda k: int(k))
 
         class Options:
-            roles = {
-                "public": blacklist("result")
-            }
+            roles = {"public": blacklist("result")}
 
     p1 = Player({"id": 1, "display_name": "A"})
     p2 = Player({"id": 2, "display_name": "B"})
 
-    game = Game({
-        "id": "1",
-        "players": {
-            1: p1,
-            2: p2
-        }
-    })
+    game = Game({"id": "1", "players": {1: p1, 2: p2}})
 
     assert game.players[1] == p1
     assert game.players[2] == p2
@@ -693,13 +644,9 @@ def test_serializable_with_dict_and_roles():
     assert d == {
         "id": "1",
         "players": {
-            1: {
-                "display_name": "A"
-            },
-            2: {
-                "display_name": "B"
-            },
-        }
+            1: {"display_name": "A"},
+            2: {"display_name": "B"},
+        },
     }
 
 
@@ -709,9 +656,7 @@ def test_serializable_with_list_and_roles():
         display_name = StringType()
 
         class Options:
-            roles = {
-                "public": blacklist("id")
-            }
+            roles = {"public": blacklist("id")}
 
     class Game(Model):
         id = StringType()
@@ -719,17 +664,12 @@ def test_serializable_with_list_and_roles():
         players = ListType(ModelType(Player))
 
         class Options:
-            roles = {
-                "public": blacklist("result")
-            }
+            roles = {"public": blacklist("result")}
 
     p1 = Player({"id": 1, "display_name": "A"})
     p2 = Player({"id": 2, "display_name": "B"})
 
-    game = Game({
-        "id": "1",
-        "players": [p1, p2]
-    })
+    game = Game({"id": "1", "players": [p1, p2]})
 
     assert game.players[0] == p1
     assert game.players[1] == p2
@@ -745,12 +685,11 @@ def test_serializable_with_list_and_roles():
             {
                 "display_name": "B",
             },
-        ]
+        ],
     }
 
 
 def test_role_set_operations():
-
     protected = whitelist('email', 'password')
     all_fields = whitelist('id', 'name') + protected
 
@@ -760,7 +699,7 @@ def test_role_set_operations():
             n += 1
 
     class User(Model):
-        id = IntType(default=six.next(count(42)))
+        id = IntType(default=next(count(42)))
         name = StringType()
         email = StringType()
         password = StringType()
@@ -801,7 +740,8 @@ def test_role_set_operations():
 
     user = User(
         dict(
-            (k, v) for k, v in iteritems(data)
+            (k, v)
+            for k, v in data.items()
             if k in User._options.roles['create']  # filter by 'create' role
         )
     )
@@ -827,27 +767,21 @@ def test_role_set_operations():
 
     d = user.serialize(role='everything')
 
-    assert d == {
-        'email': 'adent@hitchhiker.gal',
-        'id': 42,
-        'name': 'Arthur',
-        'password': 'dolphins'
-    }
+    assert d == {'email': 'adent@hitchhiker.gal', 'id': 42, 'name': 'Arthur', 'password': 'dolphins'}
 
     def test_md5_type(self):
         class M(Model):
             md5 = MD5Type()
 
         import hashlib
+
         myhash = hashlib.md5("hashthis").hexdigest()
         m = M()
         m.md5 = myhash
 
         self.assertEqual(m.md5, myhash)
         d = m.serialize()
-        self.assertEqual(d, {
-            'md5': myhash
-        })
+        self.assertEqual(d, {'md5': myhash})
 
         m2 = M(d)
         self.assertEqual(m2.md5, myhash)
@@ -859,9 +793,7 @@ def test_serializable_with_list_and_default_role():
         display_name = StringType()
 
         class Options:
-            roles = {
-                "default": blacklist("id")
-            }
+            roles = {"default": blacklist("id")}
 
     class Game(Model):
         id = StringType()
@@ -869,17 +801,12 @@ def test_serializable_with_list_and_default_role():
         players = ListType(ModelType(Player))
 
         class Options:
-            roles = {
-                "default": blacklist("result")
-            }
+            roles = {"default": blacklist("result")}
 
     p1 = Player({"id": 1, "display_name": "A"})
     p2 = Player({"id": 2, "display_name": "B"})
 
-    game = Game({
-        "id": "1",
-        "players": [p1, p2]
-    })
+    game = Game({"id": "1", "players": [p1, p2]})
 
     assert game.players[0] == p1
     assert game.players[1] == p2
@@ -895,7 +822,7 @@ def test_serializable_with_list_and_default_role():
             {
                 "display_name": "B",
             },
-        ]
+        ],
     }
 
     d = game.serialize()
@@ -909,5 +836,5 @@ def test_serializable_with_list_and_default_role():
             {
                 "display_name": "B",
             },
-        ]
+        ],
     }

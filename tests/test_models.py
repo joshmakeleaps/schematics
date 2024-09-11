@@ -9,7 +9,6 @@ from schematics.types.base import StringType, IntType
 from schematics.types.compound import ModelType
 from schematics.exceptions import ValidationError, ConversionError, ModelConversionError
 
-from six import PY3
 
 def test_init_with_dict():
     class Player(Model):
@@ -66,11 +65,11 @@ def test_dict_interface():
         name = StringType()
 
     p = Player()
-    p.name = u"Jóhann"
+    p.name = "Jóhann"
 
     assert "name" in p
-    assert p['name'] == u"Jóhann"
-    assert 'fake_key'not in p
+    assert p['name'] == "Jóhann"
+    assert 'fake_key' not in p
 
 
 def test_init_model_from_another_model():
@@ -93,7 +92,7 @@ def test_raises_validation_error_on_non_partial_validate():
 
     with pytest.raises(ValidationError) as exception:
         u.validate()
-        assert exception.messages, {"bio": [u"This field is required."]}
+        assert exception.messages, {"bio": ["This field is required."]}
 
 
 def test_model_inheritance():
@@ -103,7 +102,7 @@ def test_model_inheritance():
     class Child(Parent):
         bio = StringType()
 
-    input_data = {'bio': u'Genius', 'name': u'Joey'}
+    input_data = {'bio': 'Genius', 'name': 'Joey'}
 
     model = Child(input_data)
     model.validate()
@@ -120,11 +119,11 @@ def test_validation_uses_internal_state():
         name = StringType(required=True)
         age = IntType(required=True)
 
-    u = User({'name': u'Henry VIII'})
+    u = User({'name': 'Henry VIII'})
     u.age = 99
     u.validate()
 
-    assert u.name == u'Henry VIII'
+    assert u.name == 'Henry VIII'
     assert u.age == 99
 
 
@@ -157,7 +156,7 @@ def test_returns_nice_conversion_errors():
         errors = exception.messages
 
         assert errors == {
-            "age": [u'Value is not int'],
+            "age": ['Value is not int'],
         }
 
 
@@ -173,18 +172,18 @@ def test_returns_partial_data_with_conversion_errors():
     partial_data = exception.value.partial_data
 
     assert partial_data == {
-        "name": u"Jóhann",
+        "name": "Jóhann",
         "account_level": 3,
     }
 
 
 def test_field_default():
     class User(Model):
-        name = StringType(default=u'Doggy')
+        name = StringType(default='Doggy')
 
     u = User()
     assert User.name.__class__ == StringType
-    assert u.name == u'Doggy'
+    assert u.name == 'Doggy'
 
 
 def test_attribute_default_to_none_if_no_value():
@@ -223,11 +222,11 @@ def test_default_value_when_updating_model():
 
 def test_explicit_values_override_defaults():
     class User(Model):
-        name = StringType(default=u'Doggy')
+        name = StringType(default='Doggy')
 
     u = User({"name": "Voffi"})
     u.validate()
-    assert u.name == u'Voffi'
+    assert u.name == 'Voffi'
 
     u = User()
     u.name = "Guffi"
@@ -262,7 +261,6 @@ def test_no_options_args():
 
 def test_options_parsing_from_model():
     class Foo(Model):
-
         class Options:
             namespace = 'foo'
             roles = {}
@@ -277,7 +275,6 @@ def test_options_parsing_from_model():
 
 def test_options_parsing_from_optionsclass():
     class FooOptions(ModelOptions):
-
         def __init__(self, klass, **kwargs):
             kwargs['namespace'] = kwargs.get('namespace') or 'foo'
             kwargs['roles'] = kwargs.get('roles') or {}
@@ -305,11 +302,7 @@ def test_subclassing_preservers_roles():
     class GrandParent(Parent):
         age = IntType()
 
-    gramps = GrandParent({
-        "id": "1",
-        "name": "Edward",
-        "age": 87
-    })
+    gramps = GrandParent({"id": "1", "name": "Edward", "age": 87})
 
     options = gramps._options
 
@@ -325,28 +318,18 @@ def test_subclassing_overides_roles():
         name = StringType()
 
         class Options:
-            roles = {
-                'public': blacklist("id", "gender"),
-                'gender': blacklist("gender")
-            }
+            roles = {'public': blacklist("id", "gender"), 'gender': blacklist("gender")}
 
     class GrandParent(Parent):
         age = IntType()
         family_secret = StringType()
 
         class Options:
-            roles = {
-                'grandchildren': whitelist("age"),
-                'public': blacklist("id", "family_secret")
-            }
+            roles = {'grandchildren': whitelist("age"), 'public': blacklist("id", "family_secret")}
 
-    gramps = GrandParent({
-        "id": "1",
-        "name": "Edward",
-        "gender": "Male",
-        "age": 87,
-        "family_secret": "Secretly Canadian"
-    })
+    gramps = GrandParent(
+        {"id": "1", "name": "Edward", "gender": "Male", "age": 87, "family_secret": "Secretly Canadian"}
+    )
 
     options = gramps._options
 
@@ -364,14 +347,14 @@ def test_as_field_validate():
     class Card(Model):
         user = ModelType(User)
 
-    c = Card({"user": {'name': u'Doggy'}})
-    assert c.user.name == u'Doggy'
+    c = Card({"user": {'name': 'Doggy'}})
+    assert c.user.name == 'Doggy'
 
     with pytest.raises(ConversionError):
         c.user = [1]
         c.validate()
 
-    assert c.user.name == u'Doggy', u'Validation should not remove or modify existing data'
+    assert c.user.name == 'Doggy', 'Validation should not remove or modify existing data'
 
 
 def test_model_field_validate_structure():
@@ -392,11 +375,7 @@ def test_model_deserialize_from_with_list():
     assert User({'name': 'Ryan'}).username == 'Ryan'
     assert User({'user': 'Mike'}).username == 'Mike'
     assert User({'username': 'Mark'}).username == 'Mark'
-    assert User({
-        "username": "Mark",
-        "name": "Second-class",
-        "user": "key"
-    }).username == 'Mark'
+    assert User({"username": "Mark", "name": "Second-class", "user": "key"}).username == 'Mark'
 
 
 def test_model_deserialize_from_with_string():
@@ -419,8 +398,10 @@ def test_model_import_with_deserialize_mapping():
     assert User({'name': 'Ryan'}, deserialize_mapping=mapping).username == 'Ryan'
     assert User({'user': 'Mike'}, deserialize_mapping=mapping).username == 'Mike'
     assert User({'username': 'Mark'}, deserialize_mapping=mapping).username == 'Mark'
-    assert User({'username': 'Mark', "name": "Second-class", "user": "key"},
-                deserialize_mapping=mapping).username == 'Mark'
+    assert (
+        User({'username': 'Mark', "name": "Second-class", "user": "key"}, deserialize_mapping=mapping).username
+        == 'Mark'
+    )
 
 
 def test_model_import_data_with_mapping():
@@ -455,22 +436,28 @@ def test_nested_model_import_data_with_mappings():
     }
 
     root = Root()
-    root.import_data({
-        "attr": "root value",
-        "next": {
-            "attr": "nested value",
+    root.import_data(
+        {
+            "attr": "root value",
+            "next": {
+                "attr": "nested value",
+            },
         },
-    }, mapping=mapping)
+        mapping=mapping,
+    )
 
     assert root.root_attr == 'root value'
     assert root.nxt_level.nested_attr == 'nested value'
 
-    root = Root({
-        "attr": "root value",
-        "next": {
-            "attr": "nested value",
+    root = Root(
+        {
+            "attr": "root value",
+            "next": {
+                "attr": "nested value",
+            },
         },
-    }, deserialize_mapping=mapping)
+        deserialize_mapping=mapping,
+    )
 
     assert root.root_attr == 'root value'
     assert root.nxt_level.nested_attr == 'nested value'
@@ -575,6 +562,12 @@ def test_repr():
     inst = TestModel({'field1': 'foo'})
     assert repr(inst) == '<TestModel: TestModel object>'
 
-    if not PY3: #todo: make this work for PY3
-        inst.__class__.__name__ = '\x80'
-        assert repr(inst) == '<[Bad Unicode class name]: [Bad Unicode data]>'
+
+@pytest.mark.skip("Not migrated to PY3")
+def test_repr_py2():
+    class TestModel(Model):
+        field1 = StringType()
+
+    inst = TestModel({'field1': 'foo'})
+    inst.__class__.__name__ = '\x80'
+    assert repr(inst) == '<[Bad Unicode class name]: [Bad Unicode data]>'
